@@ -257,6 +257,13 @@ Resources:
         - Key: Name
           Value: !Ref ApplicationName
           PropagateAtLaunch: "true"
+  WebServerASGScheduledAction:
+    Type: AWS::AutoScaling::ScheduledAction
+    Properties:
+      AutoScalingGroupName: !Ref WebServerASG
+      MaxSize: 0
+      MinSize: 0
+      Recurrence: "0 19 * * *"
   WebServerASGSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
