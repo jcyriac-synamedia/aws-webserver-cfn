@@ -31,7 +31,22 @@ Parameters:
     Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
     Type: String
     Default: 10.192.21.0/24
-    
+
+  EC2AmiID:
+    Description: EC2 AMI ID
+    Type: String
+    Default: ami-0eb59cc9a08011df6
+
+  EC2InstanceType:
+    Description: EC2 Instance Type
+    Type: String
+    Default: t3.micro
+
+  SSHCidr:
+    Description: The IP address range that can be used to SSH to the EC2 instances
+    Type: String
+    Default: 45.149.66.0/23
+
 Resources:
   VPC:
     Type: AWS::EC2::VPC
@@ -210,6 +225,41 @@ Resources:
       Tags:
         - Key: Name
           Value: !Ref ApplicationName
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref 'EC2InstanceType'
+      SecurityGroups: [!Ref 'InstanceSecurityGroup']
+
+      ImageId: !Ref 'EC2AmiID'
+      Tags:
+        - Key: Name
+          Value: !Ref ApplicationName
+
+  InstanceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Enable SSH access
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: '22'
+        ToPort: '22'
+        CidrIp: !Ref 'SSHCidr'
+      Tags:
+        - Key: Name
+          Value: !Ref ApplicationName
+
+  IPAddress:
+    Type: AWS::EC2::EIP
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref ApplicationName
+  IPAssoc:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      InstanceId: !Ref 'EC2Instance'
+      EIP: !Ref 'IPAddress'
 
 Outputs:
   VPC:
