@@ -4,7 +4,6 @@ Parameters:
   VpcCIDR:
     Description: CIDR notation for the VPC
     Type: String
-    Default: 10.0.0.0/24
     Default: 10.192.0.0/16
 
   ApplicationName:
