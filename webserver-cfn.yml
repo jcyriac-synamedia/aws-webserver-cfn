@@ -1,0 +1,35 @@
+Description: A CloudFormation template for deploying a highly available and scalable webserver in AWS. This includes VPC and ASG, ALB
+
+Parameters:
+  VpcCIDR:
+    Description: CIDR notation for the VPC
+    Type: String
+    Default: 10.0.0.0/24
+  ApplicationName:
+    Description: Application Name
+    Type: String
+    Default: jeevan-webserver
+
+Resources:
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: !Ref ApplicationName
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref ApplicationName
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
