@@ -250,7 +250,7 @@ Resources:
   WebServerASGSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Enable SSH access
+      GroupDescription: !Sub ${ApplicationName} Enable SSH access
       VpcId: !Ref VPC
       SecurityGroupIngress:
       - IpProtocol: tcp
@@ -260,7 +260,66 @@ Resources:
       Tags:
         - Key: Name
           Value: !Ref ApplicationName
+  WebServerTargetGroup:
+    Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
+    Properties:
+        HealthCheckIntervalSeconds: 30
+        Port: 80
+        Protocol: "HTTP"
+        HealthCheckPort: "traffic-port"
+        HealthCheckProtocol: "HTTP"
+        HealthCheckTimeoutSeconds: 5
+        UnhealthyThresholdCount: 2
+        TargetType: "instance"
+        Matcher: 
+            HttpCode: "200"
+        HealthyThresholdCount: 5
+        VpcId: !Ref VPC
+        Name: !Ref ApplicationName
+        HealthCheckEnabled: true
+  WebServerALBSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+        GroupDescription: !Sub ${ApplicationName} security group for ALB
+        GroupName: !Sub ${ApplicationName}-ALB
+        Tags: 
+          - Key: Name
+            Value: !Ref ApplicationName
+        VpcId: !Ref VPC
+        SecurityGroupIngress: 
+          - 
+            CidrIp: "0.0.0.0/0"
+            FromPort: 80
+            IpProtocol: "tcp"
+            ToPort: 80
+  WebServerALBListener:
+    Type: "AWS::ElasticLoadBalancingV2::Listener"
+    Properties:
+      DefaultActions:
+        - Type: "redirect"
+          RedirectConfig:
+            Protocol: "HTTP"
+            Port: 80
+            Host: "#{host}"
+            Path: "/#{path}"
+            Query: "#{query}"
+            StatusCode: "HTTP_301"
+      LoadBalancerArn: !Ref WebServerALB
+      Port: 80
+      Protocol: "HTTP"
 
+  WebServerALB:
+    Type: "AWS::ElasticLoadBalancingV2::LoadBalancer"
+    Properties:
+        Name: !Ref ApplicationName
+        Scheme: "internet-facing"
+        Type: "application"
+        Subnets: 
+          - !Ref PublicSubnet1
+          - !Ref PublicSubnet2
+        SecurityGroups: 
+          - !Ref WebServerALBSecurityGroup
+        IpAddressType: "ipv4"
   WebServerInstanceRole:
     Type: "AWS::IAM::Role"
     Properties: 
