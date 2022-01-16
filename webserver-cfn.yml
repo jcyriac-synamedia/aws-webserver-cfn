@@ -216,19 +216,38 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable2
       SubnetId: !Ref PrivateSubnet2
 
-  EC2Instance:
-    Type: AWS::EC2::Instance
+  WebServerLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
     Properties:
-      InstanceType: !Ref 'EC2InstanceType'
-      SecurityGroupIds: [!Ref 'InstanceSecurityGroup']
-      IamInstanceProfile: !Ref InstanceProfile
-      ImageId: !Ref 'EC2AmiID'
-      SubnetId: !Ref PrivateSubnet2
+      LaunchTemplateName: WebServerLaunchTemplate
+      LaunchTemplateData:
+        IamInstanceProfile:
+          Arn: !GetAtt
+            - WebServerInstanceProfile
+            - Arn
+        DisableApiTermination: true
+        ImageId: !Ref EC2AmiID
+        InstanceType: !Ref EC2InstanceType
+        SecurityGroupIds: [!Ref WebServerASGSecurityGroup]
+  WebServerASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AutoScalingGroupName: !Ref ApplicationName
+      MinSize: "1"
+      MaxSize: "2"
+      DesiredCapacity: "2"
+      HealthCheckGracePeriod: 60
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WebServerLaunchTemplate
+        Version: !GetAtt WebServerLaunchTemplate.LatestVersionNumber
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
       Tags:
         - Key: Name
           Value: !Ref ApplicationName
-
-  InstanceSecurityGroup:
+          PropagateAtLaunch: "true"
+  WebServerASGSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Enable SSH access
@@ -237,12 +256,12 @@ Resources:
       - IpProtocol: tcp
         FromPort: '22'
         ToPort: '22'
-        CidrIp: !Ref 'SSHCidr'
+        CidrIp: !Ref SSHCidr
       Tags:
         - Key: Name
           Value: !Ref ApplicationName
 
-  InstanceRole: 
+  WebServerInstanceRole:
     Type: "AWS::IAM::Role"
     Properties: 
       AssumeRolePolicyDocument: 
@@ -261,25 +280,26 @@ Resources:
       Tags:
         - Key: Name
           Value: !Ref ApplicationName
-  InstanceProfile:
+  WebServerInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
-      InstanceProfileName: !Ref ApplicationName
+      InstanceProfileName: !Sub ${ApplicationName}-InstanceProfile
       Path: /
       Roles:
-       - !Ref InstanceRole
+       - !Ref WebServerInstanceRole
 
-  IPAddress:
-    Type: AWS::EC2::EIP
-    Properties:
-      Tags:
-        - Key: Name
-          Value: !Ref ApplicationName
-  IPAssoc:
-    Type: AWS::EC2::EIPAssociation
-    Properties:
-      InstanceId: !Ref 'EC2Instance'
-      EIP: !Ref 'IPAddress'
+
+  # IPAddress:
+  #   Type: AWS::EC2::EIP
+  #   Properties:
+  #     Tags:
+  #       - Key: Name
+  #         Value: !Ref ApplicationName
+  # IPAssoc:
+  #   Type: AWS::EC2::EIPAssociation
+  #   Properties:
+  #     InstanceId: !Ref 'EC2Instance'
+  #     EIP: !Ref 'IPAddress'
 
 Outputs:
   VPC:
