@@ -35,7 +35,7 @@ Parameters:
   EC2AmiID:
     Description: EC2 AMI ID
     Type: String
-    Default: ami-0eb59cc9a08011df6
+    Default: ami-08e4e35cccc6189f4
 
   EC2InstanceType:
     Description: EC2 Instance Type
@@ -230,7 +230,7 @@ Resources:
     Properties:
       InstanceType: !Ref 'EC2InstanceType'
       SecurityGroups: [!Ref 'InstanceSecurityGroup']
-
+      IamInstanceProfile: !Ref InstanceProfile
       ImageId: !Ref 'EC2AmiID'
       Tags:
         - Key: Name
@@ -248,6 +248,33 @@ Resources:
       Tags:
         - Key: Name
           Value: !Ref ApplicationName
+
+  InstanceRole: 
+    Type: "AWS::IAM::Role"
+    Properties: 
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "ec2.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+       - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Tags:
+        - Key: Name
+          Value: !Ref ApplicationName
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Ref ApplicationName
+      Path: /
+      Roles:
+       - !Ref InstanceRole
 
   IPAddress:
     Type: AWS::EC2::EIP

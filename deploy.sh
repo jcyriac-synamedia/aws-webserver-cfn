@@ -7,4 +7,5 @@ aws cloudformation deploy \
     --profile $AWS_PROFILE \
     --region $AWS_REGION \
     --template-file $TEMPLATE_FILE_NAME \
+    --capabilities CAPABILITY_NAMED_IAM \
     --stack-name $STACK_NAME
