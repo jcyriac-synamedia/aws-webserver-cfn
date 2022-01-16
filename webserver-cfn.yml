@@ -225,10 +225,19 @@ Resources:
           Arn: !GetAtt
             - WebServerInstanceProfile
             - Arn
-        DisableApiTermination: true
         ImageId: !Ref EC2AmiID
         InstanceType: !Ref EC2InstanceType
         SecurityGroupIds: [!Ref WebServerASGSecurityGroup]
+        UserData:
+          Fn::Base64:
+            !Sub |
+              #!/bin/bash
+              yum update -y
+              yum install -y httpd.x86_64
+              systemctl start httpd.service
+              systemctl enable httpd.service
+              echo "Hello World from $(hostname -f)" > /var/www/html/index.html
+
   WebServerASG:
     Type: AWS::AutoScaling::AutoScalingGroup
     Properties:
@@ -243,6 +252,8 @@ Resources:
       VPCZoneIdentifier:
         - !Ref PrivateSubnet1
         - !Ref PrivateSubnet2
+      TargetGroupARNs:
+        - !Ref WebServerTargetGroup
       Tags:
         - Key: Name
           Value: !Ref ApplicationName
@@ -250,16 +261,21 @@ Resources:
   WebServerASGSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: !Sub ${ApplicationName} Enable SSH access
+      GroupDescription: !Sub ${ApplicationName}-ASG Allow SSH
+      GroupName: !Sub ${ApplicationName}-ASG
       VpcId: !Ref VPC
       SecurityGroupIngress:
       - IpProtocol: tcp
-        FromPort: '22'
-        ToPort: '22'
+        FromPort: 22
+        ToPort: 22
         CidrIp: !Ref SSHCidr
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        SourceSecurityGroupId: !Ref WebServerALBSecurityGroup
       Tags:
         - Key: Name
-          Value: !Ref ApplicationName
+          Value: !Sub ${ApplicationName}-ASG
   WebServerTargetGroup:
     Type: "AWS::ElasticLoadBalancingV2::TargetGroup"
     Properties:
@@ -280,30 +296,23 @@ Resources:
   WebServerALBSecurityGroup:
     Type: "AWS::EC2::SecurityGroup"
     Properties:
-        GroupDescription: !Sub ${ApplicationName} security group for ALB
-        GroupName: !Sub ${ApplicationName}-ALB
-        Tags: 
-          - Key: Name
-            Value: !Ref ApplicationName
-        VpcId: !Ref VPC
-        SecurityGroupIngress: 
-          - 
-            CidrIp: "0.0.0.0/0"
-            FromPort: 80
-            IpProtocol: "tcp"
-            ToPort: 80
+      GroupDescription: !Sub ${ApplicationName}-ALB Allow HTTP Traffic
+      GroupName: !Sub ${ApplicationName}-ALB
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+      Tags:
+        - Key: Name
+          Value: !Sub ${ApplicationName}-ALB
   WebServerALBListener:
     Type: "AWS::ElasticLoadBalancingV2::Listener"
     Properties:
       DefaultActions:
-        - Type: "redirect"
-          RedirectConfig:
-            Protocol: "HTTP"
-            Port: 80
-            Host: "#{host}"
-            Path: "/#{path}"
-            Query: "#{query}"
-            StatusCode: "HTTP_301"
+        - Type: forward
+          TargetGroupArn: !Ref WebServerTargetGroup
       LoadBalancerArn: !Ref WebServerALB
       Port: 80
       Protocol: "HTTP"
@@ -346,19 +355,6 @@ Resources:
       Path: /
       Roles:
        - !Ref WebServerInstanceRole
-
-
-  # IPAddress:
-  #   Type: AWS::EC2::EIP
-  #   Properties:
-  #     Tags:
-  #       - Key: Name
-  #         Value: !Ref ApplicationName
-  # IPAssoc:
-  #   Type: AWS::EC2::EIPAssociation
-  #   Properties:
-  #     InstanceId: !Ref 'EC2Instance'
-  #     EIP: !Ref 'IPAddress'
 
 Outputs:
   VPC:
